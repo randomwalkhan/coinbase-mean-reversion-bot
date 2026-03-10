@@ -120,12 +120,18 @@ on run argv
     end tell
 end run
 """
-    subprocess.run(
-        ["osascript", "-", normalized_target, message],
-        input=script,
-        text=True,
-        check=True,
-    )
+    try:
+        subprocess.run(
+            ["osascript", "-", normalized_target, message],
+            input=script,
+            text=True,
+            check=True,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            "Timed out talking to Messages. Open Messages on the Mac mini and allow automation for osascript."
+        ) from exc
 
 
 def main() -> None:
@@ -144,7 +150,12 @@ def main() -> None:
     if not target:
         raise SystemExit("Missing IMESSAGE_TARGET in .env")
 
-    send_imessage(target, message)
+    try:
+        send_imessage(target, message)
+    except Exception:
+        LOGGER.exception("Failed to send iMessage status report")
+        raise
+
     LOGGER.info("Status report sent to %s", _normalize_phone_number(target))
 
 
