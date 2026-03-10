@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_DIR="${1:-$HOME/services/coinbase-mean-reversion-bot}"
 ENV_NAME="${ENV_NAME:-quant}"
 PLIST_NAME="${PLIST_NAME:-com.randomwalkhan.coinbase-bot}"
+STATUS_PLIST_NAME="${STATUS_PLIST_NAME:-com.randomwalkhan.coinbase-bot-status}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-900}"
 
 find_conda_sh() {
@@ -42,6 +43,21 @@ python -m pip install -r requirements.txt
 
 PYTHON_BIN="$(command -v python)"
 PLIST_PATH="$HOME/Library/LaunchAgents/${PLIST_NAME}.plist"
+STATUS_PLIST_PATH="$HOME/Library/LaunchAgents/${STATUS_PLIST_NAME}.plist"
+
+IMESSAGE_TARGET="$("${PYTHON_BIN}" - <<'PY'
+from dotenv import dotenv_values
+cfg = dotenv_values('.env')
+print(cfg.get('IMESSAGE_TARGET', ''))
+PY
+)"
+
+STATUS_REPORT_INTERVAL_SECONDS="$("${PYTHON_BIN}" - <<'PY'
+from dotenv import dotenv_values
+cfg = dotenv_values('.env')
+print(cfg.get('STATUS_REPORT_INTERVAL_SECONDS', '1800'))
+PY
+)"
 
 cat > "$PLIST_PATH" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -81,9 +97,47 @@ launchctl bootout "gui/$(id -u)" "$PLIST_PATH" >/dev/null 2>&1 || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH"
 launchctl kickstart -k "gui/$(id -u)/${PLIST_NAME}"
 
+if [[ -n "${IMESSAGE_TARGET}" ]]; then
+  cat > "$STATUS_PLIST_PATH" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>${STATUS_PLIST_NAME}</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>${PYTHON_BIN}</string>
+      <string>-m</string>
+      <string>coinbase_bot.status_report</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>${REPO_DIR}</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>${STATUS_REPORT_INTERVAL_SECONDS}</integer>
+    <key>StandardOutPath</key>
+    <string>${REPO_DIR}/logs/status.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>${REPO_DIR}/logs/status.err.log</string>
+    <key>ProcessType</key>
+    <string>Background</string>
+  </dict>
+</plist>
+PLIST
+
+  launchctl bootout "gui/$(id -u)" "$STATUS_PLIST_PATH" >/dev/null 2>&1 || true
+  launchctl bootstrap "gui/$(id -u)" "$STATUS_PLIST_PATH"
+  launchctl kickstart -k "gui/$(id -u)/${STATUS_PLIST_NAME}"
+fi
+
 echo "Remote bootstrap complete."
 echo "Repo: ${REPO_DIR}"
 echo "Env: ${ENV_NAME}"
 echo "Python: ${PYTHON_BIN}"
 echo "LaunchAgent: ${PLIST_PATH}"
-
+if [[ -n "${IMESSAGE_TARGET}" ]]; then
+  echo "Status LaunchAgent: ${STATUS_PLIST_PATH}"
+  echo "Status interval: ${STATUS_REPORT_INTERVAL_SECONDS}"
+fi

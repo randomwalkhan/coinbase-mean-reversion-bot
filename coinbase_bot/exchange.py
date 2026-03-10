@@ -112,6 +112,22 @@ class CoinbaseAdvancedClient:
             total += float(available_balance.get("value", 0.0))
         return total
 
+    def get_balances(self, currencies: list[str] | None = None) -> dict[str, float]:
+        payload = self._get("/api/v3/brokerage/accounts")
+        balances: dict[str, float] = {}
+        wanted = {currency.upper() for currency in currencies} if currencies else None
+
+        for account in payload.get("accounts", []):
+            currency = str(account.get("currency", "")).upper()
+            if not currency:
+                continue
+            if wanted is not None and currency not in wanted:
+                continue
+            available_balance = account.get("available_balance", {})
+            balances[currency] = balances.get(currency, 0.0) + float(available_balance.get("value", 0.0))
+
+        return balances
+
     def get_fills(
         self,
         product_id: str,

@@ -111,6 +111,14 @@ logs/launchd.out.log
 logs/launchd.err.log
 ```
 
+If `IMESSAGE_TARGET` is set in `.env`, the deploy script also installs a second `launchd` job that sends periodic iMessage status reports with:
+
+- BTC-USD and ETH-USD spot prices
+- available balances
+- open positions
+- latest scan reasons
+- recent fills
+
 ## Configure
 
 Create `.env` from the template:
