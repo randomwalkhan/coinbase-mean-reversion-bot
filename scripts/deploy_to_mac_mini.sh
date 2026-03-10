@@ -13,8 +13,6 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SSH_OPTS=(
   -o
   StrictHostKeyChecking=accept-new
-  -o
-  BatchMode=yes
 )
 
 if [[ -n "${SSH_IDENTITY_FILE:-}" ]]; then
