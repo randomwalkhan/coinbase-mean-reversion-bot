@@ -75,6 +75,42 @@ cat state/live_state.json
 cat state/dry_run_state.json
 ```
 
+## Deploy To A Mac Mini
+
+If you keep a Mac mini online 24/7, this repo includes deployment helpers for a remote Tailscale host.
+
+Expected remote setup:
+
+- SSH access to the mini
+- a conda environment named `quant`
+- `.env` already present in this repo before deployment
+
+From your local machine:
+
+```bash
+cd "/Users/hanks/Documents/coinbase-mean-reversion-bot"
+chmod +x scripts/deploy_to_mac_mini.sh scripts/remote_bootstrap_mac_mini.sh
+SSH_IDENTITY_FILE="$HOME/.ssh/id_ed25519" \
+REMOTE_HOST="mac@100.86.132.84" \
+ENV_NAME="quant" \
+./scripts/deploy_to_mac_mini.sh
+```
+
+What the deploy script does:
+
+- copies the bot repo to the remote Mac mini
+- reuses your existing `.env`
+- installs Python requirements inside the `quant` environment
+- creates a `launchd` agent for auto-start
+- starts or restarts the live bot service
+
+The generated `launchd` logs will land in:
+
+```text
+logs/launchd.out.log
+logs/launchd.err.log
+```
+
 ## Configure
 
 Create `.env` from the template:
