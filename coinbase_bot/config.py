@@ -49,12 +49,14 @@ class StrategyConfig:
     bollinger_window: int = 20
     bollinger_stddev: float = 1.8
     rsi_window: int = 13
-    rsi_entry: float = 32.0
+    rsi_entry: float = 36.0
     ema_fast: int = 50
     ema_slow: int = 200
     atr_window: int = 14
     atr_stop_multiple: float = 1.0
-    entry_buffer: float = 0.003
+    entry_buffer: float = 0.004
+    wick_entry_buffer: float = 0.001
+    wick_close_buffer: float = 0.006
     max_chase_atr: float = 0.35
     min_reward_risk: float = 1.25
     cooldown_candles: int = 4
@@ -95,12 +97,14 @@ def load_config() -> BotConfig:
         bollinger_window=_parse_int("STRATEGY_BOLLINGER_WINDOW", 20),
         bollinger_stddev=_parse_float("STRATEGY_BOLLINGER_STDDEV", 1.8),
         rsi_window=_parse_int("STRATEGY_RSI_WINDOW", 13),
-        rsi_entry=_parse_float("STRATEGY_RSI_ENTRY", 32.0),
+        rsi_entry=_parse_float("STRATEGY_RSI_ENTRY", 36.0),
         ema_fast=_parse_int("STRATEGY_EMA_FAST", 50),
         ema_slow=_parse_int("STRATEGY_EMA_SLOW", 200),
         atr_window=_parse_int("STRATEGY_ATR_WINDOW", 14),
         atr_stop_multiple=_parse_float("STRATEGY_ATR_STOP_MULTIPLE", 1.0),
-        entry_buffer=_parse_float("STRATEGY_ENTRY_BUFFER", 0.003),
+        entry_buffer=_parse_float("STRATEGY_ENTRY_BUFFER", 0.004),
+        wick_entry_buffer=_parse_float("STRATEGY_WICK_ENTRY_BUFFER", 0.001),
+        wick_close_buffer=_parse_float("STRATEGY_WICK_CLOSE_BUFFER", 0.006),
         max_chase_atr=_parse_float("STRATEGY_MAX_CHASE_ATR", 0.35),
         min_reward_risk=_parse_float("STRATEGY_MIN_REWARD_RISK", 1.25),
         cooldown_candles=_parse_int("STRATEGY_COOLDOWN_CANDLES", 4),
@@ -127,4 +131,3 @@ def load_config() -> BotConfig:
         state_path=state_path,
         strategy=strategy,
     )
-

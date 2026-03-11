@@ -33,6 +33,7 @@ def evaluate_long_entry(
     latest = signal_frame.iloc[-1]
     required_fields = [
         "close",
+        "low",
         "bb_mid",
         "bb_lower",
         "ema_fast",
@@ -49,15 +50,20 @@ def evaluate_long_entry(
     entry_price = float(reference_price if reference_price is not None else latest["close"])
     indicators = {
         "close": float(latest["close"]),
+        "low": float(latest["low"]),
         "bb_mid": float(latest["bb_mid"]),
         "bb_lower": float(latest["bb_lower"]),
         "ema_fast": float(latest["ema_fast"]),
         "ema_slow": float(latest["ema_slow"]),
+        "ema_slow_change": float(latest["ema_slow_change"]),
         "rsi": float(latest["rsi"]),
         "atr": float(latest["atr"]),
         "atr_pct": float(latest["atr_pct"]),
         "volume_ratio": float(latest["volume_ratio"]),
     }
+    indicators["band_gap_pct"] = ((indicators["close"] / indicators["bb_lower"]) - 1.0) * 100
+    indicators["wick_band_gap_pct"] = ((indicators["low"] / indicators["bb_lower"]) - 1.0) * 100
+    indicators["trend_gap_pct"] = ((indicators["ema_fast"] / indicators["ema_slow"]) - 1.0) * 100
 
     if latest["ema_fast"] <= latest["ema_slow"]:
         return _hold("trend filter failed", indicators)
@@ -65,7 +71,14 @@ def evaluate_long_entry(
     if latest["ema_slow_change"] <= 0:
         return _hold("slow trend is not rising", indicators)
 
-    if latest["close"] > latest["bb_lower"] * (1 + config.entry_buffer):
+    close_near_lower_band = latest["close"] <= latest["bb_lower"] * (1 + config.entry_buffer)
+    wick_tagged_lower_band = (
+        latest["low"] <= latest["bb_lower"] * (1 + config.wick_entry_buffer)
+        and latest["close"] <= latest["bb_lower"] * (1 + config.wick_close_buffer)
+    )
+    indicators["wick_tagged_lower_band"] = 1.0 if wick_tagged_lower_band else 0.0
+
+    if not close_near_lower_band and not wick_tagged_lower_band:
         return _hold("price is not stretched below lower band", indicators)
 
     if latest["rsi"] > config.rsi_entry:
@@ -104,4 +117,3 @@ def evaluate_long_entry(
         reward_risk=reward_risk,
         indicators=indicators,
     )
-

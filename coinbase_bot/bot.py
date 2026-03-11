@@ -18,6 +18,39 @@ from coinbase_bot.strategy import evaluate_long_entry
 LOGGER = logging.getLogger("coinbase_bot")
 
 
+def _format_indicators(indicators: dict[str, float]) -> str:
+    if not indicators:
+        return ""
+
+    ordered_keys = [
+        "close",
+        "low",
+        "bb_lower",
+        "band_gap_pct",
+        "wick_band_gap_pct",
+        "ema_fast",
+        "ema_slow",
+        "trend_gap_pct",
+        "ema_slow_change",
+        "rsi",
+        "atr_pct",
+        "volume_ratio",
+        "wick_tagged_lower_band",
+    ]
+    parts = []
+    for key in ordered_keys:
+        if key not in indicators:
+            continue
+        value = indicators[key]
+        if key == "wick_tagged_lower_band":
+            parts.append(f"{key}={int(value)}")
+        elif key in {"band_gap_pct", "wick_band_gap_pct", "trend_gap_pct", "atr_pct"}:
+            parts.append(f"{key}={value:.3f}")
+        else:
+            parts.append(f"{key}={value:.2f}")
+    return " | " + ", ".join(parts)
+
+
 def _extract_order_id(payload: dict) -> str | None:
     for path in [
         ("success_response", "order_id"),
@@ -194,7 +227,7 @@ def run_cycle(config: BotConfig, live: bool) -> None:
 
             decision = evaluate_long_entry(signal_frame, config.strategy, reference_price=product.price)
             if decision.action != "BUY":
-                LOGGER.info("%s: %s", product_id, decision.reason)
+                LOGGER.info("%s: %s%s", product_id, decision.reason, _format_indicators(decision.indicators))
                 continue
 
             available_balance = client.get_available_balance(config.quote_currency)

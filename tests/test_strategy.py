@@ -30,6 +30,7 @@ class StrategyTests(unittest.TestCase):
             [
                 {
                     "close": 100.0,
+                    "low": 99.8,
                     "bb_mid": 103.0,
                     "bb_lower": 100.0,
                     "ema_fast": 108.0,
@@ -52,6 +53,7 @@ class StrategyTests(unittest.TestCase):
             [
                 {
                     "close": 100.0,
+                    "low": 99.7,
                     "bb_mid": 103.0,
                     "bb_lower": 99.8,
                     "ema_fast": 99.0,
@@ -67,6 +69,29 @@ class StrategyTests(unittest.TestCase):
         decision = evaluate_long_entry(frame, StrategyConfig(), reference_price=100.0)
         self.assertEqual(decision.action, "HOLD")
         self.assertIn("trend", decision.reason)
+
+    def test_entry_signal_accepts_wick_touch_near_lower_band(self) -> None:
+        frame = pd.DataFrame(
+            [
+                {
+                    "close": 100.5,
+                    "low": 99.9,
+                    "bb_mid": 103.0,
+                    "bb_lower": 100.0,
+                    "ema_fast": 108.0,
+                    "ema_slow": 104.0,
+                    "ema_slow_change": 0.8,
+                    "rsi": 31.0,
+                    "atr": 1.5,
+                    "atr_pct": 0.015,
+                    "volume_ratio": 1.2,
+                }
+            ]
+        )
+        config = StrategyConfig()
+        decision = evaluate_long_entry(frame, config, reference_price=100.4)
+        self.assertEqual(decision.action, "BUY")
+        self.assertEqual(decision.indicators["wick_tagged_lower_band"], 1.0)
 
 
 if __name__ == "__main__":
