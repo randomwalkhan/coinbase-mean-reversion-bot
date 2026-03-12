@@ -101,6 +101,24 @@ class CoinbaseAdvancedClient:
             trading_disabled=bool(payload.get("trading_disabled", False)),
         )
 
+    def get_key_permissions(self) -> dict[str, Any]:
+        return self._get("/api/v3/brokerage/key_permissions")
+
+    def get_portfolios(self) -> dict[str, Any]:
+        return _to_dict(self.client.get_portfolios())
+
+    def get_perps_portfolio_summary(self, portfolio_uuid: str) -> dict[str, Any]:
+        return _to_dict(self.client.get_perps_portfolio_summary(portfolio_uuid))
+
+    def get_perps_portfolio_balances(self, portfolio_uuid: str) -> dict[str, Any]:
+        return _to_dict(self.client.get_perps_portfolio_balances(portfolio_uuid))
+
+    def list_perps_positions(self, portfolio_uuid: str) -> list[dict[str, Any]]:
+        payload = _to_dict(self.client.list_perps_positions(portfolio_uuid))
+        if "positions" in payload:
+            return list(payload["positions"])
+        return list(payload.get("perpetual_futures_positions", []))
+
     def get_available_balance(self, currency: str) -> float:
         payload = self._get("/api/v3/brokerage/accounts")
         currency = currency.upper()
@@ -148,6 +166,77 @@ class CoinbaseAdvancedClient:
 
     def create_order(self, order_body: dict[str, Any]) -> dict[str, Any]:
         return self._post("/api/v3/brokerage/orders", order_body)
+
+    def preview_market_order(
+        self,
+        product_id: str,
+        side: str,
+        quote_size: str | None = None,
+        base_size: str | None = None,
+        leverage: str | None = None,
+        margin_type: str | None = None,
+        retail_portfolio_id: str | None = None,
+    ) -> dict[str, Any]:
+        side = side.upper()
+        if side == "BUY":
+            response = self.client.preview_market_order_buy(
+                product_id=product_id,
+                quote_size=quote_size,
+                base_size=base_size,
+                leverage=leverage,
+                margin_type=margin_type,
+                retail_portfolio_id=retail_portfolio_id,
+            )
+        elif side == "SELL":
+            if base_size is None:
+                raise ValueError("base_size is required for SELL previews")
+            response = self.client.preview_market_order_sell(
+                product_id=product_id,
+                base_size=base_size,
+                leverage=leverage,
+                margin_type=margin_type,
+                retail_portfolio_id=retail_portfolio_id,
+            )
+        else:
+            raise ValueError(f"Unsupported side for preview_market_order: {side}")
+        return _to_dict(response)
+
+    def create_market_order(
+        self,
+        client_order_id: str,
+        product_id: str,
+        side: str,
+        quote_size: str | None = None,
+        base_size: str | None = None,
+        leverage: str | None = None,
+        margin_type: str | None = None,
+        retail_portfolio_id: str | None = None,
+    ) -> dict[str, Any]:
+        side = side.upper()
+        if side == "BUY":
+            response = self.client.market_order_buy(
+                client_order_id=client_order_id,
+                product_id=product_id,
+                quote_size=quote_size,
+                base_size=base_size,
+                leverage=leverage,
+                margin_type=margin_type,
+                retail_portfolio_id=retail_portfolio_id,
+            )
+        elif side == "SELL":
+            if base_size is None:
+                raise ValueError("base_size is required for SELL orders")
+            response = self.client.market_order_sell(
+                client_order_id=client_order_id,
+                product_id=product_id,
+                base_size=base_size,
+                leverage=leverage,
+                margin_type=margin_type,
+                retail_portfolio_id=retail_portfolio_id,
+            )
+        else:
+            raise ValueError(f"Unsupported side for create_market_order: {side}")
+        return _to_dict(response)
 
     def fetch_candles(self, product_id: str, granularity: str, candles_needed: int) -> pd.DataFrame:
         granularity = granularity.upper()

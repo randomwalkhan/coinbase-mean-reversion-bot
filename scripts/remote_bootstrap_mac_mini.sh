@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_DIR="${1:-$HOME/services/coinbase-mean-reversion-bot}"
 ENV_NAME="${ENV_NAME:-quant}"
 PLIST_NAME="${PLIST_NAME:-com.randomwalkhan.coinbase-bot}"
+PERP_PLIST_NAME="${PERP_PLIST_NAME:-com.randomwalkhan.coinbase-perp-bot}"
 STATUS_PLIST_NAME="${STATUS_PLIST_NAME:-com.randomwalkhan.coinbase-bot-status}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-900}"
 
@@ -43,6 +44,7 @@ python -m pip install -r requirements.txt
 
 PYTHON_BIN="$(command -v python)"
 PLIST_PATH="$HOME/Library/LaunchAgents/${PLIST_NAME}.plist"
+PERP_PLIST_PATH="$HOME/Library/LaunchAgents/${PERP_PLIST_NAME}.plist"
 STATUS_PLIST_PATH="$HOME/Library/LaunchAgents/${STATUS_PLIST_NAME}.plist"
 
 IMESSAGE_TARGET="$("${PYTHON_BIN}" - <<'PY'
@@ -56,6 +58,22 @@ STATUS_REPORT_INTERVAL_SECONDS="$("${PYTHON_BIN}" - <<'PY'
 from dotenv import dotenv_values
 cfg = dotenv_values('.env')
 print(cfg.get('STATUS_REPORT_INTERVAL_SECONDS', '1800'))
+PY
+)"
+
+PERP_BOT_ENABLED="$("${PYTHON_BIN}" - <<'PY'
+from dotenv import dotenv_values
+cfg = dotenv_values('.env')
+raw = str(cfg.get('PERP_BOT_ENABLED', 'false')).strip().lower()
+print('true' if raw in {'1', 'true', 'yes', 'on'} else 'false')
+PY
+)"
+
+PERP_RUN_MODE="$("${PYTHON_BIN}" - <<'PY'
+from dotenv import dotenv_values
+cfg = dotenv_values('.env')
+enabled = str(cfg.get('COINBASE_ALLOW_PERP_LIVE_TRADING', 'false')).strip().lower()
+print('live' if enabled in {'1', 'true', 'yes', 'on'} else 'dry-run')
 PY
 )"
 
@@ -97,6 +115,48 @@ launchctl bootout "gui/$(id -u)" "$PLIST_PATH" >/dev/null 2>&1 || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH"
 launchctl kickstart -k "gui/$(id -u)/${PLIST_NAME}"
 
+if [[ "${PERP_BOT_ENABLED}" == "true" ]]; then
+  cat > "$PERP_PLIST_PATH" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>${PERP_PLIST_NAME}</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>${PYTHON_BIN}</string>
+      <string>-m</string>
+      <string>coinbase_bot.perp_bot</string>
+      <string>--mode</string>
+      <string>${PERP_RUN_MODE}</string>
+      <string>--loop</string>
+      <string>--sleep-seconds</string>
+      <string>${SLEEP_SECONDS}</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>${REPO_DIR}</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>${REPO_DIR}/logs/perp_launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>${REPO_DIR}/logs/perp_launchd.err.log</string>
+    <key>ProcessType</key>
+    <string>Background</string>
+  </dict>
+</plist>
+PLIST
+
+  launchctl bootout "gui/$(id -u)" "$PERP_PLIST_PATH" >/dev/null 2>&1 || true
+  launchctl bootstrap "gui/$(id -u)" "$PERP_PLIST_PATH"
+  launchctl kickstart -k "gui/$(id -u)/${PERP_PLIST_NAME}"
+else
+  launchctl bootout "gui/$(id -u)" "$PERP_PLIST_PATH" >/dev/null 2>&1 || true
+fi
+
 if [[ -n "${IMESSAGE_TARGET}" ]]; then
   cat > "$STATUS_PLIST_PATH" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -137,6 +197,10 @@ echo "Repo: ${REPO_DIR}"
 echo "Env: ${ENV_NAME}"
 echo "Python: ${PYTHON_BIN}"
 echo "LaunchAgent: ${PLIST_PATH}"
+if [[ "${PERP_BOT_ENABLED}" == "true" ]]; then
+  echo "Perp LaunchAgent: ${PERP_PLIST_PATH}"
+  echo "Perp mode: ${PERP_RUN_MODE}"
+fi
 if [[ -n "${IMESSAGE_TARGET}" ]]; then
   echo "Status LaunchAgent: ${STATUS_PLIST_PATH}"
   echo "Status interval: ${STATUS_REPORT_INTERVAL_SECONDS}"

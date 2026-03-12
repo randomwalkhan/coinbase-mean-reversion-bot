@@ -22,6 +22,8 @@ class OpenPosition:
     exchange_order_id: str | None = None
     dry_run: bool = True
     close_deadline: str | None = None
+    side: str = "LONG"
+    market_type: str = "SPOT"
 
 
 @dataclass
@@ -84,4 +86,3 @@ class BotState:
         day_key = current_time.date().isoformat()
         realized = self.realized_pnl_by_day.get(day_key, 0.0)
         return abs(realized) if realized < 0 else 0.0
-

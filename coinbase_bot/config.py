@@ -90,6 +90,31 @@ class BotConfig:
             raise ValueError(f"Unsupported granularity: {self.granularity}") from exc
 
 
+@dataclass(frozen=True)
+class PerpBotConfig:
+    enabled: bool = False
+    product_ids: list[str] = field(default_factory=lambda: ["BTC-PERP-INTX", "ETH-PERP-INTX"])
+    granularity: str = "FIFTEEN_MINUTE"
+    lookback_candles: int = 900
+    collateral_currency: str = "USDC"
+    portfolio_uuid: str | None = None
+    leverage: float = 2.0
+    margin_type: str = "CROSS"
+    per_trade_notional_fraction: float = 0.08
+    min_quote_order_size: float = 10.0
+    max_open_positions: int = 1
+    preview_live_orders: bool = True
+    allow_live_trading: bool = False
+    state_path: Path = Path("state/perp_live_state.json")
+
+    @property
+    def granularity_seconds(self) -> int:
+        try:
+            return GRANULARITY_SECONDS[self.granularity]
+        except KeyError as exc:
+            raise ValueError(f"Unsupported granularity: {self.granularity}") from exc
+
+
 def load_config() -> BotConfig:
     load_dotenv()
 
@@ -130,4 +155,28 @@ def load_config() -> BotConfig:
         allow_live_trading=_parse_bool("COINBASE_ALLOW_LIVE_TRADING", False),
         state_path=state_path,
         strategy=strategy,
+    )
+
+
+def load_perp_config() -> PerpBotConfig:
+    load_dotenv()
+
+    portfolio_uuid = os.getenv("COINBASE_PERP_PORTFOLIO_UUID")
+    portfolio_uuid = portfolio_uuid.strip() if portfolio_uuid else None
+
+    return PerpBotConfig(
+        enabled=_parse_bool("PERP_BOT_ENABLED", False),
+        product_ids=_parse_list("PERP_PRODUCTS", ["BTC-PERP-INTX", "ETH-PERP-INTX"]),
+        granularity=os.getenv("PERP_GRANULARITY", "FIFTEEN_MINUTE").strip().upper(),
+        lookback_candles=_parse_int("PERP_LOOKBACK_CANDLES", 900),
+        collateral_currency=os.getenv("PERP_COLLATERAL_CURRENCY", "USDC").strip().upper(),
+        portfolio_uuid=portfolio_uuid,
+        leverage=_parse_float("PERP_DEFAULT_LEVERAGE", 2.0),
+        margin_type=os.getenv("PERP_MARGIN_TYPE", "CROSS").strip().upper(),
+        per_trade_notional_fraction=_parse_float("PERP_NOTIONAL_FRACTION", 0.08),
+        min_quote_order_size=_parse_float("PERP_MIN_QUOTE_ORDER_SIZE", 10.0),
+        max_open_positions=_parse_int("PERP_MAX_OPEN_POSITIONS", 1),
+        preview_live_orders=_parse_bool("PERP_PREVIEW_LIVE_ORDERS", True),
+        allow_live_trading=_parse_bool("COINBASE_ALLOW_PERP_LIVE_TRADING", False),
+        state_path=Path(os.getenv("PERP_STATE_PATH", "state/perp_live_state.json")),
     )

@@ -2,11 +2,12 @@
 
 ![Bot preview](assets/readme-preview.svg)
 
-Spot-only Coinbase Advanced Trade bot for conservative mean-reversion entries, bracket exits, backtesting, dry-run validation, and live execution.
+Coinbase Advanced Trade bot with a conservative spot mean-reversion core and an optional low-allocation perp sidecar for BTC and ETH.
 
 ## What It Does
 
 - Trades Coinbase spot pairs such as `BTC-USD`, `ETH-USD`, and `SOL-USD`
+- Can optionally monitor `BTC-PERP-INTX` and `ETH-PERP-INTX` with separate low-leverage pullback logic
 - Uses a long-only mean-reversion setup:
   - price stretched below lower Bollinger Band
   - oversold RSI
@@ -25,6 +26,7 @@ Spot-only Coinbase Advanced Trade bot for conservative mean-reversion entries, b
   - `dry-run` loops
   - `live` loops
   - rolling log files
+  - a separate perp runner that stays isolated from spot state
 
 ## Quick Start
 
@@ -49,6 +51,12 @@ Once the strategy behavior looks correct:
 python3 -m coinbase_bot.bot --mode live --loop --sleep-seconds 900
 ```
 
+Optional perp dry run:
+
+```bash
+python3 -m coinbase_bot.perp_bot --mode dry-run --loop --sleep-seconds 900
+```
+
 ## Example Output
 
 ```text
@@ -65,6 +73,8 @@ The bot now writes logs to rotating files automatically:
 
 - `logs/dry-run.log`
 - `logs/live.log`
+- `logs/perp_dry-run.log`
+- `logs/perp_live.log`
 
 Useful commands:
 
@@ -73,6 +83,7 @@ tail -f logs/live.log
 tail -f logs/dry-run.log
 cat state/live_state.json
 cat state/dry_run_state.json
+cat state/perp_live_state.json
 ```
 
 ## Deploy To A Mac Mini
@@ -136,12 +147,24 @@ Important values:
 - `BOT_MIN_CASH_RESERVE`
 - `BOT_MAX_DAILY_LOSS_QUOTE`
 - `COINBASE_ALLOW_LIVE_TRADING`
+- `PERP_BOT_ENABLED`
+- `COINBASE_ALLOW_PERP_LIVE_TRADING`
+- `COINBASE_PERP_PORTFOLIO_UUID`
 
 Live trading stays disabled until:
 
 ```env
 COINBASE_ALLOW_LIVE_TRADING="true"
 ```
+
+Perp trading stays disabled until:
+
+```env
+PERP_BOT_ENABLED="true"
+COINBASE_ALLOW_PERP_LIVE_TRADING="true"
+```
+
+The perp runner also requires a perpetuals portfolio that the API can access. If the account is not fully enabled yet, the bot will log the permission error and skip entries safely.
 
 ## Backtest
 
@@ -185,6 +208,12 @@ Continuous live loop:
 python3 -m coinbase_bot.bot --mode live --loop --sleep-seconds 900
 ```
 
+Continuous perp loop:
+
+```bash
+python3 -m coinbase_bot.perp_bot --mode dry-run --loop --sleep-seconds 900
+```
+
 ## Repository Layout
 
 ```text
@@ -194,11 +223,14 @@ coinbase_bot/
   config.py
   exchange.py
   indicators.py
+  perp_bot.py
+  perp_strategy.py
   state.py
   strategy.py
 assets/
   readme-preview.svg
 tests/
+  test_perp_strategy.py
   test_strategy.py
 Reversal2.0.ipynb
 update_reversal_csv.ipynb

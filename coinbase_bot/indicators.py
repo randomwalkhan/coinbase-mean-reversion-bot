@@ -5,7 +5,7 @@ import pandas as pd
 from coinbase_bot.config import StrategyConfig
 
 
-def _compute_rsi(close: pd.Series, window: int) -> pd.Series:
+def compute_rsi(close: pd.Series, window: int) -> pd.Series:
     delta = close.diff()
     gains = delta.clip(lower=0.0)
     losses = -delta.clip(upper=0.0)
@@ -16,13 +16,39 @@ def _compute_rsi(close: pd.Series, window: int) -> pd.Series:
     return pd.to_numeric(rsi, errors="coerce").fillna(100.0)
 
 
-def _compute_atr(frame: pd.DataFrame, window: int) -> pd.Series:
+def compute_atr(frame: pd.DataFrame, window: int) -> pd.Series:
     prev_close = frame["close"].shift(1)
     high_low = frame["high"] - frame["low"]
     high_close = (frame["high"] - prev_close).abs()
     low_close = (frame["low"] - prev_close).abs()
     true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
     return true_range.ewm(alpha=1 / window, adjust=False, min_periods=window).mean()
+
+
+def compute_adx(frame: pd.DataFrame, window: int) -> pd.Series:
+    high = frame["high"]
+    low = frame["low"]
+    close = frame["close"]
+
+    plus_dm = high.diff()
+    minus_dm = -low.diff()
+    plus_dm = plus_dm.where((plus_dm > minus_dm) & (plus_dm > 0), 0.0)
+    minus_dm = minus_dm.where((minus_dm > plus_dm) & (minus_dm > 0), 0.0)
+
+    true_range = pd.concat(
+        [
+            high - low,
+            (high - close.shift(1)).abs(),
+            (low - close.shift(1)).abs(),
+        ],
+        axis=1,
+    ).max(axis=1)
+    atr = true_range.ewm(alpha=1 / window, adjust=False, min_periods=window).mean()
+
+    plus_di = 100 * (plus_dm.ewm(alpha=1 / window, adjust=False, min_periods=window).mean() / atr)
+    minus_di = 100 * (minus_dm.ewm(alpha=1 / window, adjust=False, min_periods=window).mean() / atr)
+    dx = ((plus_di - minus_di).abs() / (plus_di + minus_di).replace(0.0, pd.NA)) * 100
+    return dx.ewm(alpha=1 / window, adjust=False, min_periods=window).mean().fillna(0.0)
 
 
 def normalize_candles(frame: pd.DataFrame) -> pd.DataFrame:
@@ -71,8 +97,8 @@ def build_signal_frame(candles: pd.DataFrame, config: StrategyConfig) -> pd.Data
     frame["ema_fast"] = frame["close"].ewm(span=config.ema_fast, adjust=False).mean()
     frame["ema_slow"] = frame["close"].ewm(span=config.ema_slow, adjust=False).mean()
     frame["ema_slow_change"] = frame["ema_slow"] - frame["ema_slow"].shift(5)
-    frame["rsi"] = _compute_rsi(frame["close"], config.rsi_window)
-    frame["atr"] = _compute_atr(frame, config.atr_window)
+    frame["rsi"] = compute_rsi(frame["close"], config.rsi_window)
+    frame["atr"] = compute_atr(frame, config.atr_window)
     frame["atr_pct"] = frame["atr"] / frame["close"]
     volume_median = frame["volume"].rolling(20).median()
     frame["volume_ratio"] = frame["volume"] / volume_median.replace(0.0, pd.NA)
