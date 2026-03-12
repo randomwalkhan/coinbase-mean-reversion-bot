@@ -170,7 +170,11 @@ def _should_exit_live(position: OpenPosition, current_price: float, now: datetim
 def run_cycle(config: PerpBotConfig, live: bool) -> None:
     state_path = _state_path_for_mode(config.state_path, live)
     state = BotState.load(state_path)
-    client = CoinbaseAdvancedClient(require_auth=True)
+    client = CoinbaseAdvancedClient(
+        api_key=config.api_key,
+        api_secret=config.api_secret,
+        require_auth=True,
+    )
     now = utc_now()
 
     if not config.enabled:

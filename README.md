@@ -148,6 +148,8 @@ Important values:
 - `BOT_MAX_DAILY_LOSS_QUOTE`
 - `COINBASE_ALLOW_LIVE_TRADING`
 - `PERP_BOT_ENABLED`
+- `COINBASE_PERP_API_KEY`
+- `COINBASE_PERP_API_SECRET`
 - `COINBASE_ALLOW_PERP_LIVE_TRADING`
 - `COINBASE_PERP_PORTFOLIO_UUID`
 
@@ -163,6 +165,8 @@ Perp trading stays disabled until:
 PERP_BOT_ENABLED="true"
 COINBASE_ALLOW_PERP_LIVE_TRADING="true"
 ```
+
+The perp runner can use a dedicated API key via `COINBASE_PERP_API_KEY` and `COINBASE_PERP_API_SECRET`. This is the safer setup because the spot bot can keep its `Primary` portfolio key while the perp bot uses a separate key scoped to the `perp` portfolio.
 
 The perp runner also requires a perpetuals portfolio that the API can access. If the account is not fully enabled yet, the bot will log the permission error and skip entries safely.
 

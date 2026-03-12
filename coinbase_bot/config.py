@@ -97,6 +97,8 @@ class PerpBotConfig:
     granularity: str = "FIFTEEN_MINUTE"
     lookback_candles: int = 900
     collateral_currency: str = "USDC"
+    api_key: str | None = None
+    api_secret: str | None = None
     portfolio_uuid: str | None = None
     leverage: float = 2.0
     margin_type: str = "CROSS"
@@ -161,6 +163,10 @@ def load_config() -> BotConfig:
 def load_perp_config() -> PerpBotConfig:
     load_dotenv()
 
+    api_key = os.getenv("COINBASE_PERP_API_KEY")
+    api_key = api_key.strip() if api_key else None
+    api_secret = os.getenv("COINBASE_PERP_API_SECRET")
+    api_secret = api_secret.strip() if api_secret else None
     portfolio_uuid = os.getenv("COINBASE_PERP_PORTFOLIO_UUID")
     portfolio_uuid = portfolio_uuid.strip() if portfolio_uuid else None
 
@@ -170,6 +176,8 @@ def load_perp_config() -> PerpBotConfig:
         granularity=os.getenv("PERP_GRANULARITY", "FIFTEEN_MINUTE").strip().upper(),
         lookback_candles=_parse_int("PERP_LOOKBACK_CANDLES", 900),
         collateral_currency=os.getenv("PERP_COLLATERAL_CURRENCY", "USDC").strip().upper(),
+        api_key=api_key,
+        api_secret=api_secret,
         portfolio_uuid=portfolio_uuid,
         leverage=_parse_float("PERP_DEFAULT_LEVERAGE", 2.0),
         margin_type=os.getenv("PERP_MARGIN_TYPE", "CROSS").strip().upper(),
